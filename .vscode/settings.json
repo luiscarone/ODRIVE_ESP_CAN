@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "odrive_can.h": "c",
+        "stdint.h": "c",
+        "esp_err.h": "c",
+        "*.tcc": "cpp"
+    }
+}
