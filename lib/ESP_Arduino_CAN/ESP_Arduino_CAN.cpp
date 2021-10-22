@@ -198,7 +198,7 @@ void ESP_Arduino_CAN::SetPosition(int axis_id, float position, float velocity_fe
 
 void ESP_Arduino_CAN::SetPosReset(int axis_id)
 { // SetPosition(axis_id, position, velocity_feedforward, 0.0f);
-    autoCtrlMode(axis_id, {ODRIVE_CONTROL_MODE_POSITION, ODRIVE_INPUT_MODE_PASSTHROUGH});
+    autoCtrlMode(axis_id, {ODRIVE_CONTROL_MODE_VELOCITY, ODRIVE_INPUT_MODE_PASSTHROUGH});
 
     ODriveInputPosition Setpos;
     Setpos.position = AXES[axis_id].Read.position;
