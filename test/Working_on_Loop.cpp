@@ -64,10 +64,11 @@ typedef struct
 } ODriveIQ;
 ODriveIQ oIQ;
 
-CAN_frame_t tx_frame;
+
 
 void sendnow(int axis, int command, bool rtr, byte *bytes, int lengh)
 {
+        CAN_frame_t tx_frame;
     tx_frame.MsgID = ODRIVE_MSG_ID(axis, command);
     tx_frame.FIR.B.DLC = lengh;
     tx_frame.FIR.B.FF = CAN_frame_std;
@@ -109,9 +110,9 @@ void sendmsg(int interval)
 {
     if ((millis() - lastsend) > interval)
     {
-        sendnow(0, ODRIVE_CMD_GET_IQ, 1, 0, 0);
+        sendnow(0, ODRIVE_CMD_GET_IQ, true, 0, 0);
         lastsend = millis();
-     //   Serial.println("NEW MESSAGE");
+       Serial.println("NEW MESSAGE");
    
     }
 
