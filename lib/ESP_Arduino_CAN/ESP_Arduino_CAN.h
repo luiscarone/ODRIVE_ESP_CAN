@@ -30,7 +30,7 @@
 #define ODRIVE_CMD_SET_LIMITS 0x0F
 #define ODRIVE_CMD_START_ANTICOGGING 0x10
 #define ODRIVE_CMD_SET_TRAJ_VEL_LIMIT 0x11
-#define ODRIVE_CMD_SET_TRAJ_ACCEL_LIMITs 0x12
+#define ODRIVE_CMD_SET_TRAJ_ACCEL_LIMITS 0x12
 #define ODRIVE_CMD_SET_TRAJ_INERTIA 0x13
 #define ODRIVE_CMD_GET_IQ 0x14
 #define ODRIVE_CMD_GET_SENSORLESS_ESTIMATES 0x15
@@ -182,7 +182,6 @@ struct AxisClean
     uint8_t current_state;
     float position;
     float velocity;
-    float IQsetpoint;
     float IQmeasured;
     
 };
@@ -192,6 +191,7 @@ struct AxisExpand
     ODriveHeartbeat hb;
     ODriveEncoderEstimates Read;
     ODriveIq IQ;
+    ODriveControllerModes CM = {0,0};
     
 };
 
@@ -224,14 +224,23 @@ public:
 
 
     // Commands
+    void SetCtrlMode(int axis_id, int32_t ControlMode, int32_t InputMode);
+    void SetCtrlModesVelRamp(int axis_id);
+
+    void SetCtrlModePos(int axis_id);
+    
     void SetPosition(int axis_id, float position);
     void SetPosition(int axis_id, float position, float velocity_feedforward);
     void SetPosition(int axis_id, float position, float velocity_feedforward, float current_feedforward);
     void SetVelocity(int axis_id, float velocity);
     void SetVelocity(int axis_id, float velocity, float current_feedforward);
-	void SetVelocityLimit(int axis_id, float velocity_limit);
+	//void SetVelocityLimit(int axis_id, float velocity_limit);
     void SetTorque(int axis_id, float torque);
+    void SetLimits(int axis_id, float velLimit, float curLimit);
 	void ClearErrors(int axis_id);
+    void setTrajVel(int axis_id, float vel_lim);
+    void setTrajaccel(int axis_id, float acc_lim, float dec_lim);
+    void SetTrajPos(int axis_id, float position);
 
     // Getters
     void GetPosition(int axis_id);
@@ -240,6 +249,7 @@ public:
     void GetEncoderError(int axis_id);
     void GetAxisError(int axis_id);
     void GetCurrentState(int axis_id);
+    void GetControllerModes(int axis_id);
     
     void GetIQ(int axis_id);
     void GetVBus(int axis_id);
@@ -248,6 +258,7 @@ public:
    
   // private:
    long lastfeedupdate = 0;
+void autoCtrlMode(int axis_id, ODriveControllerModes _RCM);
 
 
 };
