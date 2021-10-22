@@ -12,7 +12,7 @@ void setup()
     Odrives.RunStateCloseLoop(0);
 
     Odrives.SetCtrlMode(0, 2, 2);
-    Odrives.SetLimits(0, 5, 5);
+    //Odrives.SetLimits(0, 5, 5);
     vTaskDelay(1000);
 
     //Odrives.SetCtrlModePos(0);
@@ -33,31 +33,26 @@ Odrives.Debug(0);
    if (millis() > 1000 and set1 == false){
     //Odrives.SetCtrlMode(0, 2, 1);
        Serial.println("CMD_____Vel");
-       Odrives.SetVelocity(0, 5);
+       Odrives.SetVelocity(0, 10);
        set1 = true;
    }
 
-    if (millis()  > 8000 and set2 == false){
-       Serial.print("CMD_____Vel");
 
+   if (millis() > 8000 and set2 == false){
+       Serial.print("CMD_____TRAJ2");
 
-       Odrives.SetVelocity(0, -5);
+       Odrives.SetTrajPos (0, -250);
        set2 = true;
    }
-
-
-
-   if (millis() > 25000 and set3 == false){
-      // Odrives.SetPosition(0, Odrives.AXES[0].Read.position);
-
-       Serial.println("CMD_____POSSSSSSSSSSSSS");
-
-
-       
-       Odrives.SetCtrlMode(0, 3, 2);
-       Odrives.SetPosition(0, 5);
+    
+    if (millis() > 20000 and set3 == false){
+       Serial.print("CMD_____TRAJ2");
+        // Odrives.setTrajdec(0, 15);
+        // Odrives.setTrajVel(0, 15);
+       Odrives.SetTrajPos (0, -50);
        set3 = true;
    }
+
 
 }
 

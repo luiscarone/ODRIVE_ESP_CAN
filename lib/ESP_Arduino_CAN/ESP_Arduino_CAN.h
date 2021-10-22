@@ -192,6 +192,7 @@ struct AxisExpand
     ODriveEncoderEstimates Read;
     ODriveIq IQ;
     ODriveControllerModes CM = {0,0};
+    ODriveTrajAccelLimit TL{0.2, 0.2};
     
 };
 
@@ -229,6 +230,7 @@ public:
 
     void SetCtrlModePos(int axis_id);
     
+    void SetPosReset(int axisid);
     void SetPosition(int axis_id, float position);
     void SetPosition(int axis_id, float position, float velocity_feedforward);
     void SetPosition(int axis_id, float position, float velocity_feedforward, float current_feedforward);
@@ -238,6 +240,11 @@ public:
     void SetTorque(int axis_id, float torque);
     void SetLimits(int axis_id, float velLimit, float curLimit);
 	void ClearErrors(int axis_id);
+
+
+    void setTrajacc(int axis_id, float _acc);
+    void setTrajdec(int axis_id, float _dec);
+
     void setTrajVel(int axis_id, float vel_lim);
     void setTrajaccel(int axis_id, float acc_lim, float dec_lim);
     void SetTrajPos(int axis_id, float position);
@@ -250,7 +257,8 @@ public:
     void GetAxisError(int axis_id);
     void GetCurrentState(int axis_id);
     void GetControllerModes(int axis_id);
-    
+
+
     void GetIQ(int axis_id);
     void GetVBus(int axis_id);
 
