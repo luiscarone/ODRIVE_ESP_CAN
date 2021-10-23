@@ -197,22 +197,22 @@ void ESP_Arduino_CAN::SetPosition(int axis_id, float position, float velocity_fe
 }
 
 void ESP_Arduino_CAN::SetPosReset(int axis_id)
-{ // SetPosition(axis_id, position, velocity_feedforward, 0.0f);
-    autoCtrlMode(axis_id, {ODRIVE_CONTROL_MODE_VELOCITY, ODRIVE_INPUT_MODE_PASSTHROUGH});
-
+{ 
     ODriveInputPosition Setpos;
     Setpos.position = AXES[axis_id].Read.position;
-    
     Setpos.velocity_x1000 = 0;
     Setpos.torque_x1000 = 0;
+    Serial.print("ZEREI");
     sendMessage(axis_id, ODRIVE_CMD_SET_INPUT_POS, false, (byte *)&Setpos, 8);
+    autoCtrlMode(axis_id, {ODRIVE_CONTROL_MODE_VELOCITY, ODRIVE_INPUT_MODE_PASSTHROUGH});
+
 }
 void ESP_Arduino_CAN::SetVelocity(int axis_id, float velocity) {
     SetVelocity(axis_id, velocity, 0.0f);
 }
 
 void ESP_Arduino_CAN::autoCtrlMode(int axis_id, ODriveControllerModes _RCM){
-    if(_RCM.control_mode != AXES[axis_id].CM.control_mode || _RCM.input_mode != AXES[axis_id].CM.input_mode){
+    if(_RCM.control_mode != AXES[axis_id].CM.control_mode or _RCM.input_mode != AXES[axis_id].CM.input_mode){
         AXES[axis_id].CM.control_mode = _RCM.control_mode; 
         AXES[axis_id].CM.input_mode = _RCM.input_mode;
         SetCtrlMode(axis_id, _RCM.control_mode, _RCM.input_mode);
@@ -269,6 +269,7 @@ void ESP_Arduino_CAN::SetTrajPos(int axis_id, float position)
 {
     SetPosReset(axis_id);
     autoCtrlMode(axis_id, {ODRIVE_CONTROL_MODE_POSITION, ODRIVE_INPUT_MODE_TRAP_TRAJ});
+   
     ODriveInputPosition Setpos;
 
     //vTaskDelay(5);

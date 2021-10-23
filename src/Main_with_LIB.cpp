@@ -22,6 +22,8 @@ void setup()
 bool set1 = false;
 bool set2 = false;
 bool set3 = false;
+bool set4 = false;
+
 
 
 void loop()
@@ -37,8 +39,15 @@ Odrives.Debug(0);
        set1 = true;
    }
 
+//       if (millis() > 5000 and set4 == false){
+//     //Odrives.SetCtrlMode(0, 2, 1);
+//        Serial.println("CMD_____Vel");
+//        Odrives.SetVelocity(0, 0);
+//        set4 = true;
+//    }
 
-   if (millis() > 8000 and set2 == false){
+
+   if (millis() > 10000 and set2 == false){
        Serial.print("CMD_____TRAJ2");
 
        Odrives.SetTrajPos (0, -250);
