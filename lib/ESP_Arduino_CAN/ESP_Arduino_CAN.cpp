@@ -124,9 +124,10 @@ void ESP_Arduino_CAN::feedUpdate(uint32_t interval)
 {
     if ((millis() - lastfeedupdate) > interval)
     {
-
-        GetMyData(0);
-
+        for (size_t i = 0; i < NUMOFAXIS; i++)
+        {
+            GetMyData(i);
+        }
         lastfeedupdate = millis();
     }
 }

@@ -30,8 +30,6 @@ void loop()
      Odrives.update();
     Odrives.feedUpdate(11);
 
-// Odrives.CanDebug();
-
 // Serial.print(" ");
 // Odrives.DebugMyData();
 

@@ -42,3 +42,5 @@ can_setSignal(txmsg, uint8_t(axis.motor_.fet_thermistor_.temperature_ *2), 56, 8
 return  canbus_->send_message(txmsg);
 
 }```
+
+This code is a mashup of https://github.com/wzli/odrive_can_espidf and https://github.com/G-Levine/ODriveTeensyCAN
