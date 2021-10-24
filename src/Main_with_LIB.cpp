@@ -4,7 +4,6 @@
 
 
 ESP_Arduino_CAN Odrives;
-long janela;
 void setup()
 {
     Serial.begin(115200);
@@ -31,22 +30,19 @@ void loop()
      Odrives.update();
     Odrives.feedUpdate(11);
 
-// Serial.print(Odrives.AXES[0].Read.position);
-
-// Serial.print(" ");
-// Serial.print(Odrives.AXES[0].Read.velocity);
-
 // Odrives.CanDebug();
 
 // Serial.print(" ");
 // Odrives.DebugMyData();
 
 
-if(Odrives.newupdate){
-    Odrives.CanDebug();
-}
+// if(Odrives.newupdate){
+//     Odrives.CanDebug();
+// }
+
 //Serial.println(Odrives.newupdate);
 
+Odrives.Debug(0);
 
 
    if (millis() > 1000 and set1 == false){
