@@ -228,7 +228,7 @@ struct AxisExpand
 
 class ESP_Arduino_CAN {
 public:
-     ESP_Arduino_CAN();
+    ESP_Arduino_CAN(gpio_num_t tx, gpio_num_t rx);
     void CanQueue();
     float Voltage;
     

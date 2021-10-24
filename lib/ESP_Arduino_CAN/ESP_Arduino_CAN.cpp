@@ -19,8 +19,10 @@ can_general_config_t g_config =
         .alerts_enabled = CAN_ALERT_ALL,
         .clkout_divider = 0};
 
-ESP_Arduino_CAN::ESP_Arduino_CAN()
+ESP_Arduino_CAN::ESP_Arduino_CAN(gpio_num_t tx, gpio_num_t rx)
 {
+    g_config.tx_io = tx;
+    g_config.rx_io = rx;
 
     can_timing_config_t t_config = CAN_TIMING_CONFIG_250KBITS();
     can_filter_config_t f_config = CAN_FILTER_CONFIG_ACCEPT_ALL();

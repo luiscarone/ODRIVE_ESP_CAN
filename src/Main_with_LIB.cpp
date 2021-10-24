@@ -3,7 +3,7 @@
 #include <ESP_Arduino_CAN.h>
 
 
-ESP_Arduino_CAN Odrives;
+ESP_Arduino_CAN Odrives(GPIO_NUM_4, GPIO_NUM_5);
 void setup()
 {
     Serial.begin(115200);
