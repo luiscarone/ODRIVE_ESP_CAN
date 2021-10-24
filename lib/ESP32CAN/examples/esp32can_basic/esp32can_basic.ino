@@ -1,55 +1,20 @@
 #include <ESP32CAN.h>
 #include <CAN_config.h>
-#include <arduino.h>
-
-#define ODRIVE_MSG_ID(AXIS_ID, CMD_ID) ((AXIS_ID << 5) | CMD_ID)
-#define ODRIVE_AXIS_ID(MSG_ID) (MSG_ID >> 5)
-#define ODRIVE_CMD_ID(MSG_ID) (MSG_ID & 0x1F)
-
-// Command IDs
-#define ODRIVE_CMD_CANOPEN_NMT 0x00
-#define ODRIVE_CMD_HEARTBEAT 0x01
-#define ODRIVE_CMD_ESTOP 0x02
-#define ODRIVE_CMD_GET_MOTOR_ERROR 0x03
-#define ODRIVE_CMD_GET_ENCODER_ERROR 0x04
-#define ODRIVE_CMD_GET_SENSORLESS_ERROR 0x05
-#define ODRIVE_CMD_SET_AXIS_NODE_ID 0x06
-#define ODRIVE_CMD_SET_REQUESTED_STATE 0x07
-#define ODRIVE_CMD_SET_STARTUP_CONFIG 0x08
-#define ODRIVE_CMD_GET_ENCODER_ESTIMATES 0x09
-#define ODRIVE_CMD_GET_ENCODER_COUNT 0x0A
-#define ODRIVE_CMD_SET_CONTROLLER_MODES 0x0B
-#define ODRIVE_CMD_SET_INPUT_POS 0x0C
-#define ODRIVE_CMD_SET_INPUT_VEL 0x0D
-#define ODRIVE_CMD_SET_INPUT_TORQUE 0x0E
-#define ODRIVE_CMD_SET_LIMITS 0x0F
-#define ODRIVE_CMD_START_ANTICOGGING 0x10
-#define ODRIVE_CMD_SET_TRAJ_VEL_LIMIT 0x11
-#define ODRIVE_CMD_SET_TRAJ_ACCEL_LIMITs 0x12
-#define ODRIVE_CMD_SET_TRAJ_INERTIA 0x13
-#define ODRIVE_CMD_GET_IQ 0x14
-#define ODRIVE_CMD_GET_SENSORLESS_ESTIMATES 0x15
-#define ODRIVE_CMD_REBOOT 0x16
-#define ODRIVE_CMD_GET_VBUS_VOLTAGE 0x17
-#define ODRIVE_CMD_CLEAR_ERRORS 0x18
-#define ODRIVE_CMD_SET_LINEAR_COUNT 0x19
-#define ODRIVE_CMD_CANOPEN_HEARTBEAT 0x700
-
 
 CAN_device_t CAN_cfg;               // CAN Config
 unsigned long previousMillis = 0;   // will store last time a CAN Message was send
 const int interval = 1000;          // interval at which send CAN Messages (milliseconds)
-const int rx_queue_size = 32;       // Receive Queue size
+const int rx_queue_size = 10;       // Receive Queue size
 
 void setup() {
   Serial.begin(115200);
   Serial.println("Basic Demo - ESP32-Arduino-CAN");
-  CAN_cfg.speed = CAN_SPEED_250KBPS;
-  CAN_cfg.tx_pin_id = GPIO_NUM_13;
-  CAN_cfg.rx_pin_id = GPIO_NUM_12;
+  CAN_cfg.speed = CAN_SPEED_125KBPS;
+  CAN_cfg.tx_pin_id = GPIO_NUM_5;
+  CAN_cfg.rx_pin_id = GPIO_NUM_4;
   CAN_cfg.rx_queue = xQueueCreate(rx_queue_size, sizeof(CAN_frame_t));
   // Init CAN Module
-  Serial.print(ESP32Can.CANInit());
+  ESP32Can.CANInit();
 }
 
 void loop() {
@@ -94,6 +59,6 @@ void loop() {
     tx_frame.data.u8[5] = 0x05;
     tx_frame.data.u8[6] = 0x06;
     tx_frame.data.u8[7] = 0x07;
-   ESP32Can.CANWriteFrame(&tx_frame);
+    ESP32Can.CANWriteFrame(&tx_frame);
   }
 }

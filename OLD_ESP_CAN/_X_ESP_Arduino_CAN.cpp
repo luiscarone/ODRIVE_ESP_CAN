@@ -1,112 +1,95 @@
 
 #include <arduino.h>
 #include "driver/gpio.h"
-#include "driver/can.h"
-
+//#include "driver/can.h"
+#include <ESP32CAN.h>
 #include "ESP_Arduino_CAN.h"
-
 #include "stdio.h"
+/* the variable name CAN_cfg is fixed, do not change */
 
-can_general_config_t g_config =
-    {
-        .mode = CAN_MODE_NORMAL,
-        .tx_io = GPIO_NUM_4,
-        .rx_io = GPIO_NUM_5,
-        .clkout_io = ((gpio_num_t)-1),
-        .bus_off_io = ((gpio_num_t)-1),
-        .tx_queue_len = 32,
-        .rx_queue_len = 32,
-        .alerts_enabled = CAN_ALERT_ALL,
-        .clkout_divider = 0};
+////MY FIRMWARE
+/* -save {zerar variaves 0}
+-fet
+-trajDone
+*/
+
+CAN_device_t CAN_cfg;
 
 ESP_Arduino_CAN::ESP_Arduino_CAN()
 {
 
-    can_timing_config_t t_config = CAN_TIMING_CONFIG_250KBITS();
-    can_filter_config_t f_config = CAN_FILTER_CONFIG_ACCEPT_ALL();
+    CAN_cfg.speed = CAN_SPEED_250KBPS;
+    CAN_cfg.tx_pin_id = GPIO_NUM_13;
+    CAN_cfg.rx_pin_id = GPIO_NUM_12;
 
-    if (can_driver_install(&g_config, &t_config, &f_config) != ESP_OK)
-    {
-        Serial.println("Failed to install driver");
-        return;
-    }
+    /* create a queue for CAN receiving */
+    CAN_cfg.rx_queue = xQueueCreate(10, sizeof(CAN_frame_t));
 
-    if (can_start() != ESP_OK)
-    {
-        Serial.println("Failed to start driver");
-        return;
-    }
+    // initialize CAN Module
+    ESP32Can.CANInit();
 }
-
-// CAN REQUEST
 
 void ESP_Arduino_CAN::sendMessage(int axis, int command, bool rtr, byte *bytes, int lengh)
 {
-    can_message_t tx_frame;
-    tx_frame.identifier = ODRIVE_MSG_ID(axis, command);
-    tx_frame.data_length_code = lengh;
+    CAN_frame_t tx_frame;
+    tx_frame.MsgID = ODRIVE_MSG_ID(axis, command);
+    tx_frame.FIR.B.DLC = lengh;
+    tx_frame.FIR.B.FF = CAN_frame_std;
 
     if (rtr)
     {
-        tx_frame.flags = CAN_MSG_FLAG_RTR;
+        tx_frame.FIR.B.RTR = CAN_RTR;
     }
     else
     {
-        memcpy(tx_frame.data, bytes, lengh);
-        tx_frame.flags = CAN_MSG_FLAG_NONE;
+        memcpy(tx_frame.data.u8, bytes, lengh);
+        tx_frame.FIR.B.RTR = CAN_no_RTR;
     }
-    if (can_transmit(&tx_frame, pdMS_TO_TICKS(1000)) == ESP_OK)
-    {
-        // Serial.println("Message queued for transmission");
-    }
-    else
-    {
-        Serial.println("Failed to queue message for transmission");
-    }
+
+    ESP32Can.CANWriteFrame(&tx_frame);
 }
 void ESP_Arduino_CAN::update()
 {
-    can_message_t rx_frame;
+    CAN_frame_t rx_frame;
     // receive next CAN frame from queue
-    // for (TickType_t tick = xTaskGetTickCount();; vTaskDelayUntil(&tick, 1)){
-    if (can_receive(&rx_frame, 0) == ESP_OK)
+    if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 3 * portTICK_PERIOD_MS) == pdTRUE)
     {
         newupdate = true;
-
-        if (rx_frame.flags == CAN_MSG_FLAG_RTR) // IF IS RTR
+        if (rx_frame.FIR.B.FF == CAN_frame_std) // ID IS
         {
             // DO NOTHING;
         }
 
-        uint32_t myid = ODRIVE_AXIS_ID(rx_frame.identifier);
-        uint32_t CMD = ODRIVE_CMD_ID(rx_frame.identifier);
+        if (rx_frame.FIR.B.RTR == CAN_RTR) // IF IS RTR
+        {
+            // DO NOTHING;
+        }
+
+        uint32_t myid = ODRIVE_AXIS_ID(rx_frame.MsgID);
+        uint32_t CMD = ODRIVE_CMD_ID(rx_frame.MsgID);
 
         switch (CMD)
         {
         case ODRIVE_CMD_HEARTBEAT:
-            AXES[myid].hb = *(ODriveHeartbeat *)rx_frame.data;
+            AXES[myid].hb = *(ODriveHeartbeat *)rx_frame.data.u8;
             break;
 
         case ODRIVE_CMD_GET_ENCODER_ESTIMATES:
-            AXES[myid].Read = *(ODriveEncoderEstimates *)rx_frame.data;
+            AXES[myid].Read = *(ODriveEncoderEstimates *)rx_frame.data.u8;
             break;
 
         case ODRIVE_CMD_GET_IQ:
-            AXES[myid].IQ = *(ODriveIq *)rx_frame.data;
+            AXES[myid].IQ = *(ODriveIq *)rx_frame.data.u8;
             break;
 
         case ODRIVE_CMD_GET_VBUS_VOLTAGE:
-            Voltage = *(float *)rx_frame.data;
+            Voltage = *(float *)rx_frame.data.u8;
             break;
 
         case ODRIVE_CMD_GET_MYDATA:
-            dataread = *(OdriveMyData *)rx_frame.data;
+            dataread = *(OdriveMyData *)rx_frame.data.u8;
             AXES[myid].CM.control_mode = dataread.control_mode;
             AXES[myid].CM.input_mode = dataread.input_mode;
-            AXES[myid].IQ.measured = float(dataread.Iq_measured) / 100;
-            AXES[myid].Fet_Temperature = (float)dataread.fet_temperature / 2;
-            AXES[myid].Voltage =  float(dataread.vbus_voltage) / 100;
-            AXES[myid].TrajDone = dataread.trajectory_done;
             break;
 
         default:
@@ -118,28 +101,17 @@ void ESP_Arduino_CAN::update()
         newupdate = false;
     }
 }
-void ESP_Arduino_CAN::feedUpdate(uint32_t interval)
+
+
+
+
+
+
+void ESP_Arduino_CAN::CanQueue()
 {
-    if ((millis() - lastfeedupdate) > interval)
-    {
-
-        GetMyData(0);
-
-        lastfeedupdate = millis();
-    }
+    // Serial.print("CanQ");
+    // Serial.println(CAN_cfg.rx_queue);
 }
-
-// CAN OPERATIONS CALLED FROM OUTSIDE
-void ESP_Arduino_CAN::Can_clear_rx_queue()
-{
-    can_clear_receive_queue();
-}
-void ESP_Arduino_CAN::Can_clear_tx_queue()
-{
-    can_clear_transmit_queue();
-}
-
-// AXIS REQUEST STATE
 bool ESP_Arduino_CAN::RunState(int axis_id, int requested_state)
 {
     sendMessage(axis_id, ODRIVE_CMD_SET_REQUESTED_STATE, 0, (byte *)&requested_state, 4);
@@ -158,20 +130,37 @@ bool ESP_Arduino_CAN::RunStateCloseLoop(int axis_id)
     return true;
 }
 
+void ESP_Arduino_CAN::feedUpdate(uint32_t interval)
+{
+    if ((millis() - lastfeedupdate) > interval)
+    {
+
+        GetMyData(0);
+
+        lastfeedupdate = millis();
+    }
+}
+
 // CONTROLMODES
 
 void ESP_Arduino_CAN::autoCtrlMode(int axis_id, ODriveControllerModes _RCM)
 {
     if (_RCM.control_mode != AXES[axis_id].CM.control_mode or _RCM.input_mode != AXES[axis_id].CM.input_mode)
     {
-        can_clear_receive_queue();
-        can_clear_transmit_queue();
         if (_RCM.control_mode == ODRIVE_CONTROL_MODE_POSITION)
         {
             SetPosReset(axis_id);
         }
         SetCtrlMode(axis_id, _RCM.control_mode, _RCM.input_mode);
     }
+}
+void ESP_Arduino_CAN::SetCtrlModesVelRamp(int axis_id)
+{
+    SetCtrlMode(axis_id, ODRIVE_CONTROL_MODE_VELOCITY, ODRIVE_INPUT_MODE_VEL_RAMP);
+}
+void ESP_Arduino_CAN::SetCtrlModePos(int axis_id)
+{
+    SetCtrlMode(axis_id, ODRIVE_CONTROL_MODE_POSITION, ODRIVE_INPUT_MODE_POS_FILTER);
 }
 void ESP_Arduino_CAN::SetCtrlMode(int axis_id, int ControlMode, int InputMode)
 {
@@ -182,7 +171,7 @@ void ESP_Arduino_CAN::SetCtrlMode(int axis_id, int ControlMode, int InputMode)
     sendMessage(axis_id, ODRIVE_CMD_SET_CONTROLLER_MODES, false, (byte *)&CtrlModess, 8);
 }
 
-// POSITION
+// POS
 
 void ESP_Arduino_CAN::SetPosition(int axis_id, float position)
 {
@@ -226,7 +215,7 @@ void ESP_Arduino_CAN::SetPosReset(int axis_id)
     Serial.println("TRANSOK!////////////////////////////////////////////////////");
 }
 
-// TRAJECTORY
+// TRAJJ
 void ESP_Arduino_CAN::SetTrajPos(int axis_id, float position)
 {
     autoCtrlMode(axis_id, {ODRIVE_CONTROL_MODE_POSITION, ODRIVE_INPUT_MODE_TRAP_TRAJ});
@@ -250,6 +239,7 @@ void ESP_Arduino_CAN::setTrajaccel(int axis_id, float _acc, float _dec)
 
     sendMessage(axis_id, ODRIVE_CMD_SET_TRAJ_ACCEL_LIMITS, false, (byte *)&AXES[axis_id].TL, 8);
 }
+
 void ESP_Arduino_CAN::setTrajacc(int axis_id, float _acc)
 {
 
@@ -262,6 +252,7 @@ void ESP_Arduino_CAN::setTrajacc(int axis_id, float _acc)
     Serial.print(" DEC:");
     Serial.println(AXES[axis_id].TL.decel_limit);
 }
+
 void ESP_Arduino_CAN::setTrajdec(int axis_id, float _dec)
 {
 
@@ -272,12 +263,13 @@ void ESP_Arduino_CAN::setTrajdec(int axis_id, float _dec)
     Serial.println(AXES[axis_id].TL.decel_limit);
 }
 
-// VELOCITY
+// VEL
 
 void ESP_Arduino_CAN::SetVelocity(int axis_id, float velocity)
 {
     SetVelocity(axis_id, velocity, 0.0f);
 }
+
 void ESP_Arduino_CAN::SetVelocity(int axis_id, float velocity, float current_feedforward)
 {
     autoCtrlMode(axis_id, {ODRIVE_CONTROL_MODE_VELOCITY, ODRIVE_INPUT_MODE_VEL_RAMP});
@@ -303,38 +295,17 @@ void ESP_Arduino_CAN::SetTorque(int axis_id, float torque)
 }
 
 /// PID
-void ESP_Arduino_CAN::SetPositionGains(int axis_id, float pos_gain)
-{
-    sendMessage(axis_id, ODRIVE_CMD_VEL_GAINS, false, (byte *)&pos_gain, 4);
-}
 
-void ESP_Arduino_CAN::SetVelGains(int axis_id, ODriveVelGains VelGains)
-{
-    sendMessage(axis_id, ODRIVE_CMD_VEL_GAINS, false, (byte *)&VelGains, 8);
-}
-void ESP_Arduino_CAN::SetVel_Int_Gain(int axis_id, float VelIntGain)
-{
-
-    AXES[axis_id].VG.VelIntegratorGain = VelIntGain;
-    SetVelGains(axis_id, AXES[axis_id].VG);
-}
-void ESP_Arduino_CAN::SetVel_Gain(int axis_id, float VelGain)
-{
-        AXES[axis_id].VG.VelGain = VelGain;
-        SetVelGains(axis_id, AXES[axis_id].VG);
-}
-
-// ODRIVE OPERATIONS
 void ESP_Arduino_CAN::Reboot(int axis_id)
 {
     sendMessage(axis_id, ODRIVE_CMD_REBOOT, false, 0, 0);
 }
+
 void ESP_Arduino_CAN::Save_configuration(int axis_id)
 {
-    // ALL AXIS SHOULD BE IN IDLE to save..
-    RunStateIdle(axis_id);
     sendMessage(axis_id, ODRIVE_CMD_SAVE_CONFIGURATION, false, 0, 0);
 }
+
 void ESP_Arduino_CAN::ClearErrors(int axis_id)
 {
     sendMessage(axis_id, (ODRIVE_CMD_CLEAR_ERRORS), false, 0, 0);
@@ -344,31 +315,30 @@ void ESP_Arduino_CAN::GetVBus(int axis_id)
 {
     sendMessage(axis_id, ODRIVE_CMD_GET_VBUS_VOLTAGE, true, 0, 0);
 }
+
 void ESP_Arduino_CAN::GetIQ(int axis_id)
 {
     sendMessage(axis_id, ODRIVE_CMD_GET_IQ, true, 0, 0);
 }
+
 void ESP_Arduino_CAN::GetMyData(int axis_id)
 {
     sendMessage(axis_id, ODRIVE_CMD_GET_MYDATA, true, 0, 0);
 }
 
-//DEBUG
 void ESP_Arduino_CAN::Debug(int axis_id)
 {
     if (newupdate)
     {
         //======================================================================================================================
         Serial.print(Voltage);
-        printf("Axis:%d State %d E: %d S: %d ", axis_id,  AXES[axis_id].hb.axis_current_state, AXES[axis_id].hb.axis_error, AXES[axis_id].hb.status);
+        printf("V AxisState %d E: %d S: %d ", AXES[axis_id].hb.axis_current_state, AXES[axis_id].hb.axis_error, AXES[axis_id].hb.status);
         printf("P: %f V: %f ", AXES[axis_id].Read.position, AXES[axis_id].Read.velocity);
-        printf(" IQ: %f Fet:%f ", AXES[axis_id].IQ.measured,AXES[axis_id].Fet_Temperature);
-        printf(" T_Done: %f \n" , AXES[axis_id].TrajDone);
-
-
+        printf(" IQ: %f\n", AXES[axis_id].IQ.measured);
         //=======================================================================================================================
     }
 }
+
 void ESP_Arduino_CAN::DebugMyData()
 {
     if (newupdate)
@@ -385,33 +355,6 @@ void ESP_Arduino_CAN::DebugMyData()
         Serial.print(dataread.input_mode);
         Serial.print(" fet: ");
         Serial.print((float)dataread.fet_temperature / 2);
-        Serial.println();
-    }
-}
-void ESP_Arduino_CAN::CanDebug()
-{
-
-    {
-        can_status_info_t status_info;
-        can_get_status_info(&status_info);
-        Serial.print(" s:");
-        Serial.print(status_info.state);
-        Serial.print(" tx:");
-        Serial.print(status_info.msgs_to_tx);
-        Serial.print(" rx:");
-        Serial.print(status_info.msgs_to_rx);
-        Serial.print(" tx_e:");
-        Serial.print(status_info.tx_error_counter);
-        Serial.print(" rx_e:");
-        Serial.print(status_info.rx_error_counter);
-        Serial.print(" tx_c:");
-        Serial.print(status_info.tx_failed_count);
-        Serial.print(" rx_c:");
-        Serial.print(status_info.rx_missed_count);
-        Serial.print(" air_c:");
-        Serial.print(status_info.arb_lost_count);
-        Serial.print(" bus_c:");
-        Serial.print(status_info.bus_error_count);
         Serial.println();
     }
 }

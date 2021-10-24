@@ -38,6 +38,10 @@
 #define ODRIVE_CMD_GET_VBUS_VOLTAGE 0x17
 #define ODRIVE_CMD_CLEAR_ERRORS 0x18
 #define ODRIVE_CMD_SET_LINEAR_COUNT 0x19
+#define ODRIVE_CMD_SET_POS_GAIN 0x1A
+#define ODRIVE_CMD_VEL_GAINS 0x1B
+#define ODRIVE_CMD_GET_MYDATA 0x1C
+#define ODRIVE_CMD_SAVE_CONFIGURATION 0x1D
 #define ODRIVE_CMD_CANOPEN_HEARTBEAT 0x700
 
 
@@ -70,6 +74,7 @@ typedef enum {
     ODRIVE_AXIS_ERROR_UNKNOWN_POSITION = 0x80000,
 } ODriveAxisError;
 
+
 typedef enum {
     ODRIVE_CONTROL_MODE_VOLTAGE = 0,
     ODRIVE_CONTROL_MODE_TORQUE = 1,
@@ -91,6 +96,16 @@ typedef enum {
 
 //////////////////////// STRUCTS
 
+typedef struct
+{
+    int16_t vbus_voltage; // *100
+    int16_t Iq_measured; //*100
+    uint8_t trajectory_done ;
+    uint8_t control_mode;
+    uint8_t input_mode;
+    uint8_t fet_temperature; //*2
+
+}OdriveMyData;
 
 
 
@@ -173,6 +188,11 @@ typedef struct {
     void* state_transition_context;
 } ODriveAxis;
 
+typedef struct {
+    float VelGain;
+    float VelIntegratorGain;
+} ODriveVelGains;
+
 
 
 
@@ -192,7 +212,11 @@ struct AxisExpand
     ODriveEncoderEstimates Read;
     ODriveIq IQ;
     ODriveControllerModes CM = {0,0};
-    ODriveTrajAccelLimit TL{0.2, 0.2};
+    ODriveTrajAccelLimit TL{0.5, 0.5};
+    ODriveVelGains VG{.16, .32};
+    float Voltage;
+    bool TrajDone;
+    float Fet_Temperature;
     
 };
 
@@ -205,19 +229,18 @@ struct AxisExpand
 class ESP_Arduino_CAN {
 public:
      ESP_Arduino_CAN();
-
+    void CanQueue();
     float Voltage;
     
     AxisExpand AXES[NUMOFAXIS];
 
     bool newupdate = 0;
     int myupdade = 0;
-        // State helper
+    OdriveMyData dataread;
                 
     bool RunState(int axis_id, int requested_state);
     bool RunStateIdle(int axis_id);
     bool RunStateCloseLoop(int axis_id);
-
 
     void feedUpdate(uint32_t interval);
     void sendMessage(int axis, int command, bool rtr, byte *bytes, int lengh);
@@ -227,16 +250,18 @@ public:
     // Commands
     void SetCtrlMode(int axis_id, int32_t ControlMode, int32_t InputMode);
     void SetCtrlModesVelRamp(int axis_id);
-
     void SetCtrlModePos(int axis_id);
     
+
     void SetPosReset(int axisid);
     void SetPosition(int axis_id, float position);
     void SetPosition(int axis_id, float position, float velocity_feedforward);
     void SetPosition(int axis_id, float position, float velocity_feedforward, float current_feedforward);
+    
+    
     void SetVelocity(int axis_id, float velocity);
     void SetVelocity(int axis_id, float velocity, float current_feedforward);
-	//void SetVelocityLimit(int axis_id, float velocity_limit);
+	void SetVelocityLimit(int axis_id, float velocity_limit);
     void SetTorque(int axis_id, float torque);
     void SetLimits(int axis_id, float velLimit, float curLimit);
 	void ClearErrors(int axis_id);
@@ -252,19 +277,48 @@ public:
     // Getters
     void GetPosition(int axis_id);
     void GetVelocity(int axis_id);
-    void GetMotorError(int axis_id);
-    void GetEncoderError(int axis_id);
-    void GetAxisError(int axis_id);
+
     void GetCurrentState(int axis_id);
-    void GetControllerModes(int axis_id);
 
 
     void GetIQ(int axis_id);
     void GetVBus(int axis_id);
+    void GetMyData(int axis_id);
 
     void Debug(int axis_id);
+    void DebugMyData();
+    void CanDebug();
+    void Can_clear_rx_queue();
+    void Can_clear_tx_queue();
+
    
-  // private:
+
+//TO IMPLEMENT
+
+void GetMotorError(int axis_id);
+void GetEncoderError(int axis_id);
+void GetAxisError(int axis_id);
+void GetEncoderEstimates(int axis_id);
+void GetEncoderCount(int axis_id);
+
+
+void SetLinearCount(int axis_id);
+void SetPositionGains(int axis_id, float pos_gain);
+void SetVelGains(int axis_id, ODriveVelGains VelGains);
+void SetVel_Int_Gain(int axis_id, float VelIntGain);
+void SetVel_Gain(int axis_id, float VelGain);
+
+
+
+
+
+
+//IMPLEMENTED
+void EStop();
+void Reboot(int axis_id);
+void Save_configuration(int axis_id);
+
+  private:
    long lastfeedupdate = 0;
 void autoCtrlMode(int axis_id, ODriveControllerModes _RCM);
 
