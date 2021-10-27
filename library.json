@@ -3,3 +3,4 @@
     "type": "git",
     "url": https://github.com/luiscarone/ODRIVE_ESP_CAN.git
 }
+"platforms": "*"
