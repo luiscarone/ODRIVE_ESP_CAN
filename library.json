@@ -1,3 +1,5 @@
+"repository":
 {
-  "name": "ODRIVE_ESP_CAN"
+    "type": "git",
+    "url": https://github.com/luiscarone/ODRIVE_ESP_CAN.git
 }
