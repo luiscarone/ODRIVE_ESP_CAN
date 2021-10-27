@@ -1,6 +1,13 @@
-"repository":
+
 {
+ "repository": {
     "type": "git",
-    "url": https://github.com/luiscarone/ODRIVE_ESP_CAN.git
+    "url": "https://github.com/luiscarone/ODRIVE_ESP_CAN"
+  },
+  "authors": {
+    "name": "Luis"
+  },
+  "license": "BSD-3-Clause",
+  "frameworks": "arduino",
+  "platforms": "*"
 }
-"platforms": "*"
