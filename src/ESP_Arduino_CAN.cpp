@@ -31,6 +31,7 @@ ESP_Arduino_CAN::ESP_Arduino_CAN(gpio_num_t tx, gpio_num_t rx)
     {
         Serial.println("Failed to install driver");
         return;
+        
     }
 
     if (can_start() != ESP_OK)
@@ -59,10 +60,13 @@ void ESP_Arduino_CAN::sendMessage(int axis, int command, bool rtr, byte *bytes, 
     }
     if (can_transmit(&tx_frame, pdMS_TO_TICKS(1000)) == ESP_OK)
     {
+        CanCheck = false;
         // Serial.println("Message queued for transmission");
     }
     else
     {
+        CanCheck = true;
+
         Serial.println("Failed to queue message for transmission");
     }
 }
@@ -70,10 +74,10 @@ void ESP_Arduino_CAN::update()
 {
     can_message_t rx_frame;
     // receive next CAN frame from queue
+
     // for (TickType_t tick = xTaskGetTickCount();; vTaskDelayUntil(&tick, 1)){
     if (can_receive(&rx_frame, 0) == ESP_OK)
     {
-        newupdate = true;
 
         if (rx_frame.flags == CAN_MSG_FLAG_RTR) // IF IS RTR
         {
@@ -82,6 +86,9 @@ void ESP_Arduino_CAN::update()
 
         uint32_t myid = ODRIVE_AXIS_ID(rx_frame.identifier);
         uint32_t CMD = ODRIVE_CMD_ID(rx_frame.identifier);
+        if (myid <= NUMOFAXIS){
+            
+            newupdate = true;
 
         switch (CMD)
         {
@@ -98,7 +105,7 @@ void ESP_Arduino_CAN::update()
             break;
 
         case ODRIVE_CMD_GET_VBUS_VOLTAGE:
-            Voltage = *(float *)rx_frame.data;
+            AXES[myid].Voltage = *(float *)rx_frame.data;
             break;
 
         case ODRIVE_CMD_GET_MYDATA:
@@ -114,6 +121,7 @@ void ESP_Arduino_CAN::update()
         default:
             break;
         }
+        }
     }
     else
     {
@@ -124,10 +132,14 @@ void ESP_Arduino_CAN::feedUpdate(uint32_t interval)
 {
     if ((millis() - lastfeedupdate) > interval)
     {
-        for (size_t i = 0; i < NUMOFAXIS; i++)
-        {
-            GetMyData(i);
-        }
+
+        can_status_info_t status_info;
+        can_get_status_info(&status_info);
+
+            if(status_info.msgs_to_rx < 28)
+
+            GetMyData(0);
+        
         lastfeedupdate = millis();
     }
 }
@@ -145,19 +157,21 @@ void ESP_Arduino_CAN::Can_clear_tx_queue()
 // AXIS REQUEST STATE
 bool ESP_Arduino_CAN::RunState(int axis_id, int requested_state)
 {
+    can_clear_transmit_queue();
+    can_clear_receive_queue();
     sendMessage(axis_id, ODRIVE_CMD_SET_REQUESTED_STATE, 0, (byte *)&requested_state, 4);
     return true;
 }
 bool ESP_Arduino_CAN::RunStateIdle(int axis_id)
 {
-    int requeststate = ODRIVE_AXIS_STATE_IDLE;
-    sendMessage(axis_id, ODRIVE_CMD_SET_REQUESTED_STATE, 0, (byte *)&requeststate, 4);
+    RunState(axis_id, ODRIVE_AXIS_STATE_IDLE);
+
     return true;
 }
 bool ESP_Arduino_CAN::RunStateCloseLoop(int axis_id)
 {
-    int requeststate = ODRIVE_AXIS_STATE_CLOSED_LOOP_CONTROL;
-    sendMessage(axis_id, ODRIVE_CMD_SET_REQUESTED_STATE, 0, (byte *)&requeststate, 4);
+
+    RunState(axis_id, ODRIVE_AXIS_STATE_CLOSED_LOOP_CONTROL);
     return true;
 }
 
@@ -218,7 +232,7 @@ void ESP_Arduino_CAN::SetPosReset(int axis_id)
     Serial.println("ZEREIln///////////////////////////////////////////////////////");
     ODriveControllerModes pass{ODRIVE_CONTROL_MODE_VELOCITY, ODRIVE_INPUT_MODE_PASSTHROUGH};
 
-    autoCtrlMode(axis_id, pass);
+    SetCtrlMode(axis_id, ODRIVE_CONTROL_MODE_VELOCITY, ODRIVE_INPUT_MODE_PASSTHROUGH);
     while (AXES[axis_id].CM.control_mode != pass.control_mode or AXES[axis_id].CM.input_mode != pass.input_mode)
     {
         update();
@@ -226,6 +240,7 @@ void ESP_Arduino_CAN::SetPosReset(int axis_id)
         vTaskDelay(2);
         Serial.println("NOT YET");
     }
+    vTaskDelay(5);
     Serial.println("TRANSOK!////////////////////////////////////////////////////");
 }
 
@@ -330,6 +345,8 @@ void ESP_Arduino_CAN::SetVel_Gain(int axis_id, float VelGain)
 // ODRIVE OPERATIONS
 void ESP_Arduino_CAN::Reboot(int axis_id)
 {
+        Can_clear_rx_queue();
+    Can_clear_tx_queue();
     sendMessage(axis_id, ODRIVE_CMD_REBOOT, false, 0, 0);
 }
 void ESP_Arduino_CAN::Save_configuration(int axis_id)
@@ -340,6 +357,8 @@ void ESP_Arduino_CAN::Save_configuration(int axis_id)
 }
 void ESP_Arduino_CAN::ClearErrors(int axis_id)
 {
+    Can_clear_rx_queue();
+    Can_clear_tx_queue();
     sendMessage(axis_id, (ODRIVE_CMD_CLEAR_ERRORS), false, 0, 0);
 }
 
@@ -362,11 +381,12 @@ void ESP_Arduino_CAN::Debug(int axis_id)
     if (newupdate)
     {
         //======================================================================================================================
-        Serial.print(Voltage);
+        Serial.print( AXES[axis_id].Voltage);
         printf("Axis:%d State %d E: %d S: %d ", axis_id,  AXES[axis_id].hb.axis_current_state, AXES[axis_id].hb.axis_error, AXES[axis_id].hb.status);
-        printf("P: %f V: %f ", AXES[axis_id].Read.position, AXES[axis_id].Read.velocity);
-        printf(" IQ: %f Fet:%f ", AXES[axis_id].IQ.measured,AXES[axis_id].Fet_Temperature);
-        printf(" T_Done: %f \n" , AXES[axis_id].TrajDone);
+        printf(" cm: %d input:%d ", AXES[axis_id].CM.control_mode ,AXES[axis_id].CM.input_mode) ;
+        printf(" T_Done: %d " , AXES[axis_id].TrajDone);
+        printf("P: %.1f V: %.1f ", AXES[axis_id].Read.position, AXES[axis_id].Read.velocity);
+        printf(" IQ: %.1f Fet:%.1f \n", AXES[axis_id].IQ.measured,AXES[axis_id].Fet_Temperature);
 
 
         //=======================================================================================================================
@@ -393,28 +413,56 @@ void ESP_Arduino_CAN::DebugMyData()
 }
 void ESP_Arduino_CAN::CanDebug()
 {
+    if (newupdate)
+    {        
+        can_status_info_t status_info;
+        can_get_status_info(&status_info);
+        // Serial.print(" s:");
+        // Serial.print(status_info.state);
+        // Serial.print(" tx:");
+        // Serial.print(status_info.msgs_to_tx);
+        // Serial.print(" x:");
+        Serial.println(status_info.msgs_to_rx);
+        // Serial.print(" x:");
+        // Serial.print(status_info.tx_error_counter);
+        // Serial.print(" rx_e:");
+        // Serial.print(status_info.rx_error_counter);
+        // Serial.print(" tx_c:");
+        // Serial.print(status_info.tx_failed_count);
+        // Serial.print(" rx_c:");
+        // Serial.print(status_info.rx_missed_count);
+        // Serial.print(" air_c:");
+        // Serial.print(status_info.arb_lost_count);
+        // Serial.print(" bus_c:");
+        // Serial.print(status_info.bus_error_count);
+        // Serial.println();
+    }
+}
 
+void ESP_Arduino_CAN::CanDebugFast(int interval)
+{
+if (newupdate)
     {
         can_status_info_t status_info;
         can_get_status_info(&status_info);
-        Serial.print(" s:");
-        Serial.print(status_info.state);
-        Serial.print(" tx:");
+        // Serial.print(" s:");
+        // Serial.print(status_info.state);
+        // Serial.print(" tx:");
         Serial.print(status_info.msgs_to_tx);
-        Serial.print(" rx:");
+        Serial.print("t");
         Serial.print(status_info.msgs_to_rx);
-        Serial.print(" tx_e:");
-        Serial.print(status_info.tx_error_counter);
-        Serial.print(" rx_e:");
-        Serial.print(status_info.rx_error_counter);
-        Serial.print(" tx_c:");
-        Serial.print(status_info.tx_failed_count);
-        Serial.print(" rx_c:");
-        Serial.print(status_info.rx_missed_count);
-        Serial.print(" air_c:");
-        Serial.print(status_info.arb_lost_count);
-        Serial.print(" bus_c:");
-        Serial.print(status_info.bus_error_count);
+        Serial.print(" x");
+        // Serial.print(status_info.tx_error_counter);
+        // Serial.print(" rx_e:");
+        // Serial.print(status_info.rx_error_counter);
+        // Serial.print(" tx_c:");
+        // Serial.print(status_info.tx_failed_count);
+        // Serial.print(" rx_c:");
+        // Serial.print(status_info.rx_missed_count);
+        // Serial.print(" air_c:");
+        // Serial.print(status_info.arb_lost_count);
+        // Serial.print(" bus_c:");
+        // Serial.print(status_info.bus_error_count);
         Serial.println();
     }
 }

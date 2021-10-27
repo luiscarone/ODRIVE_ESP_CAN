@@ -2,7 +2,7 @@
 #define ESP_Arduino_CAN_h
 
 
-#define NUMOFAXIS 2
+#define NUMOFAXIS 1
 
 #include <Arduino.h>
 
@@ -230,12 +230,11 @@ class ESP_Arduino_CAN {
 public:
     ESP_Arduino_CAN(gpio_num_t tx, gpio_num_t rx);
     void CanQueue();
-    float Voltage;
     
     AxisExpand AXES[NUMOFAXIS];
 
     bool newupdate = 0;
-    int myupdade = 0;
+    bool CanCheck = false;
     OdriveMyData dataread;
                 
     bool RunState(int axis_id, int requested_state);
@@ -288,6 +287,7 @@ public:
     void Debug(int axis_id);
     void DebugMyData();
     void CanDebug();
+    void CanDebugFast(int interval);
     void Can_clear_rx_queue();
     void Can_clear_tx_queue();
 
