@@ -257,6 +257,9 @@ public:
     void SetPosition(int axis_id, float position, float velocity_feedforward);
     void SetPosition(int axis_id, float position, float velocity_feedforward, float current_feedforward);
     
+    void SetPositionFilter(int axis_id, float position);
+    void SetPositionFilter(int axis_id, float position, float velocity_feedforward);
+    void SetPositionFilter(int axis_id, float position, float velocity_feedforward, float current_feedforward);
     
     void SetVelocity(int axis_id, float velocity);
     void SetVelocity(int axis_id, float velocity, float current_feedforward);

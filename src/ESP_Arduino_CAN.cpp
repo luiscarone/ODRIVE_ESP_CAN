@@ -136,9 +136,11 @@ void ESP_Arduino_CAN::feedUpdate(uint32_t interval)
         can_status_info_t status_info;
         can_get_status_info(&status_info);
 
-            if(status_info.msgs_to_rx < 28)
-
+            if(status_info.msgs_to_rx < 29){
             GetMyData(0);
+                
+            }
+
         
         lastfeedupdate = millis();
     }
@@ -212,16 +214,43 @@ void ESP_Arduino_CAN::SetPosition(int axis_id, float position, float velocity_fe
 void ESP_Arduino_CAN::SetPosition(int axis_id, float position, float velocity_feedforward, float current_feedforward)
 { // SetPosition(axis_id, position, velocity_feedforward, 0.0f);
 
+    autoCtrlMode(axis_id, {ODRIVE_CONTROL_MODE_POSITION, ODRIVE_INPUT_MODE_PASSTHROUGH});
     ODriveInputPosition Setpos;
     Setpos.position = position;
 
     Setpos.velocity_x1000 = (velocity_feedforward * 1000);
     Setpos.torque_x1000 = (current_feedforward * 1000);
-    Serial.println(Setpos.velocity_x1000);
+
 
     sendMessage(axis_id, ODRIVE_CMD_SET_INPUT_POS, false, (byte *)&Setpos, 8);
-    autoCtrlMode(axis_id, {ODRIVE_CONTROL_MODE_POSITION, ODRIVE_INPUT_MODE_PASSTHROUGH});
+
 }
+
+void ESP_Arduino_CAN::SetPositionFilter(int axis_id, float position)
+{
+    SetPositionFilter(axis_id, position, 0.0f, 0.0f);
+}
+void ESP_Arduino_CAN::SetPositionFilter(int axis_id, float position, float velocity_feedforward)
+{
+    SetPositionFilter(axis_id, position, velocity_feedforward, 0.0f);
+}
+void ESP_Arduino_CAN::SetPositionFilter(int axis_id, float position, float velocity_feedforward, float current_feedforward)
+{ // SetPosition(axis_id, position, velocity_feedforward, 0.0f);
+
+    autoCtrlMode(axis_id, {ODRIVE_CONTROL_MODE_POSITION, ODRIVE_INPUT_MODE_POS_FILTER});
+    
+    ODriveInputPosition Setpos;
+    Setpos.position = position;
+
+    Setpos.velocity_x1000 = (velocity_feedforward * 1000);
+    Setpos.torque_x1000 = (current_feedforward * 1000);
+
+
+    sendMessage(axis_id, ODRIVE_CMD_SET_INPUT_POS, false, (byte *)&Setpos, 8);
+
+}
+
+
 void ESP_Arduino_CAN::SetPosReset(int axis_id)
 {
     ODriveInputPosition Setpos;
@@ -417,25 +446,25 @@ void ESP_Arduino_CAN::CanDebug()
     {        
         can_status_info_t status_info;
         can_get_status_info(&status_info);
-        // Serial.print(" s:");
-        // Serial.print(status_info.state);
-        // Serial.print(" tx:");
-        // Serial.print(status_info.msgs_to_tx);
-        // Serial.print(" x:");
-        Serial.println(status_info.msgs_to_rx);
-        // Serial.print(" x:");
-        // Serial.print(status_info.tx_error_counter);
-        // Serial.print(" rx_e:");
-        // Serial.print(status_info.rx_error_counter);
-        // Serial.print(" tx_c:");
-        // Serial.print(status_info.tx_failed_count);
-        // Serial.print(" rx_c:");
-        // Serial.print(status_info.rx_missed_count);
-        // Serial.print(" air_c:");
-        // Serial.print(status_info.arb_lost_count);
-        // Serial.print(" bus_c:");
-        // Serial.print(status_info.bus_error_count);
-        // Serial.println();
+        Serial.print(" s:");
+        Serial.print(status_info.state);
+        Serial.print(" tx:");
+        Serial.print(status_info.msgs_to_tx);
+        Serial.print(" rx:");
+        Serial.print(status_info.msgs_to_rx);
+        Serial.print(" rx_e:");
+        Serial.print(status_info.tx_error_counter);
+        Serial.print(" rx_e:");
+        Serial.print(status_info.rx_error_counter);
+        Serial.print(" tx_c:");
+        Serial.print(status_info.tx_failed_count);
+        Serial.print(" rx_c:");
+        Serial.print(status_info.rx_missed_count);
+        Serial.print(" air_c:");
+        Serial.print(status_info.arb_lost_count);
+        Serial.print(" bus_c:");
+        Serial.print(status_info.bus_error_count);
+        Serial.println();
     }
 }
 
@@ -447,11 +476,11 @@ if (newupdate)
         can_get_status_info(&status_info);
         // Serial.print(" s:");
         // Serial.print(status_info.state);
-        // Serial.print(" tx:");
+        Serial.print(" tx:");
         Serial.print(status_info.msgs_to_tx);
-        Serial.print("t");
+        Serial.print("rx");
         Serial.print(status_info.msgs_to_rx);
-        Serial.print(" x");
+        // Serial.print(" x");
         // Serial.print(status_info.tx_error_counter);
         // Serial.print(" rx_e:");
         // Serial.print(status_info.rx_error_counter);

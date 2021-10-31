@@ -7,7 +7,7 @@
   "authors": {
     "name": "Luis"
   },
-  "license": "BSD-3-Clause",
+  "license": "",
   "frameworks": "arduino",
   "platforms": "*"
 }
